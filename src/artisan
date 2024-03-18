@@ -8,6 +8,6 @@ define('LARAVEL_START', microtime(true));
 require __DIR__.'/vendor/autoload.php';
 
 $status = (require_once __DIR__.'/bootstrap/app.php')
-    ->handleCommand(new ArgvInput);
+  ->handleCommand(new ArgvInput);
 
 exit($status);
