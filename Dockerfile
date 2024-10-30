@@ -1,6 +1,6 @@
 ARG php_version=8.3
 
-FROM dunglas/frankenphp:1.1-php${php_version} AS base
+FROM dunglas/frankenphp:1.2-php${php_version} AS base
 WORKDIR /laravel
 SHELL ["/bin/bash", "-eou", "pipefail", "-c"]
 
