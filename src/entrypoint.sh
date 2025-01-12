@@ -16,12 +16,12 @@ _migrate() {
   local count=0
   local timeout=20
 
-  while [ $count -lt "${timeout}" ]; do
+  while [ "$count" -lt "$timeout" ]; do
     php -f /common/test_db_connection.php > /dev/null 2>&1
 
     status=$?
 
-    if [ $status -eq 0 ]; then
+    if [ "$status" -eq 0 ]; then
       echo "✅ Database connection successful."
       break
     fi
@@ -31,7 +31,7 @@ _migrate() {
     sleep 1
   done
 
-  if [ $count -eq "${timeout}" ]; then
+  if [ "$count" -eq "$timeout" ]; then
     echo "⛔ Database connection failed after multiple attempts."
     exit 1
   fi
@@ -41,7 +41,7 @@ _migrate() {
 }
 
 _setup() {
-  if [ -n "${CONTAINER_MANUAL_SETUP}" ]; then
+  if [ -n "$CONTAINER_MANUAL_SETUP" ]; then
     echo "⏭: Skipping setup..."
 
     return
@@ -63,30 +63,30 @@ _setup() {
 }
 
 _run() {
-  case "${CONTAINER_MODE}" in
+  case "$CONTAINER_MODE" in
     app)
       echo "🚀 Running octane..."
-      exec "${ARTISAN}" octane:frankenphp --host=0.0.0.0 --port="${CONTAINER_PORT}"
+      exec ${ARTISAN} octane:frankenphp --host=0.0.0.0 --port="$CONTAINER_PORT"
       ;;
     worker)
       echo "⏳ Running the queue..."
-      exec "${ARTISAN}" queue:work -vv \
+      exec ${ARTISAN} queue:work -vv \
         --no-interaction \
-        --tries="${CONTAINER_WORKER_TRIES}" \
-        --sleep="${CONTAINER_WORKER_SLEEP}" \
-        --timeout="${CONTAINER_WORKER_TIMEOUT}" \
-        --delay="${CONTAINER_WORKER_DELAY}"
+        --tries="$CONTAINER_WORKER_TRIES" \
+        --sleep="$CONTAINER_WORKER_SLEEP" \
+        --timeout="$CONTAINER_WORKER_TIMEOUT" \
+        --delay="$CONTAINER_WORKER_DELAY"
       ;;
     horizon)
       echo "Running horizon..."
-      exec "${ARTISAN}" horizon
+      exec ${ARTISAN} horizon
       ;;
     scheduler)
       echo "📆 Running scheduled tasks..."
-      exec "${ARTISAN}" schedule:work --verbose --no-interaction
+      exec ${ARTISAN} schedule:work --verbose --no-interaction
       ;;
     *)
-      echo "⛔ Could not match the container mode [${CONTAINER_MODE}]"
+      echo "⛔ Could not match the container mode [$CONTAINER_MODE]"
       exit 1
       ;;
   esac

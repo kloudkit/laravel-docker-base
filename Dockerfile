@@ -1,6 +1,7 @@
-ARG php_version=8.3
+ARG php_version=8.4
+ARG frankenphp_version=1.4
 
-FROM dunglas/frankenphp:1.2-php${php_version} AS base
+FROM dunglas/frankenphp:${frankenphp_version}-php${php_version} AS base
 WORKDIR /laravel
 SHELL ["/bin/bash", "-eou", "pipefail", "-c"]
 
@@ -16,7 +17,6 @@ COPY src/php.ini "${PHP_INI_DIR}/php.ini"
 RUN apt-get update \
   && apt-get satisfy -y --no-install-recommends \
     "curl (>=7.88)" \
-    "supervisor (>=4.2)" \
     "unzip (>=6.0)" \
     "vim-tiny (>=2)" \
   && rm -rf /var/lib/apt/lists/*
