@@ -6,6 +6,7 @@ WORKDIR /laravel
 SHELL ["/bin/bash", "-eou", "pipefail", "-c"]
 
 ENV SERVER_NAME=:80
+ENV OCTANE_SERVER=frankenphp
 ARG user=laravel
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
