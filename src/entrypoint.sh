@@ -1,9 +1,11 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
+trap 'echo "Error on line $LINENO"' ERR
 
-: "${CONTAINER_MODE:=app}"
 : "${CONTAINER_PORT:=8000}"
+: "${CONTAINER_MANUAL_SETUP:=}"
+: "${CONTAINER_MODE:=app}"
 : "${CONTAINER_WORKER_DELAY:=10}"
 : "${CONTAINER_WORKER_SLEEP:=5}"
 : "${CONTAINER_WORKER_TIMEOUT:=300}"
@@ -11,7 +13,8 @@ set -e
 
 : "${TEST_DB_CONNECTION:=true}"
 : "${TEST_CACHE_CONNECTION:=true}"
-: "${TEST_CONNECTION_TIMEOUT:=20}"
+: "${TEST_SMTP_CONNECTION:=false}"
+: "${TEST_CONNECTION_TIMEOUT:=10}"
 
 : "${APP_ENV:=production}"
 : "${APP_DEBUG:=false}"
@@ -21,6 +24,9 @@ ARTISAN="php -d variables_order=EGPCS /laravel/artisan"
 _test_connection() {
   local count=0
   local type="${1}"
+  local status
+
+  echo "🧪 Testing ${type} connection..."
 
   while [ "$count" -lt "$TEST_CONNECTION_TIMEOUT" ]; do
     php -f "/common/test_${type}_connection.php" > /dev/null 2>&1
@@ -44,13 +50,19 @@ _test_connections() {
   if [ "$TEST_DB_CONNECTION" != "true" ]; then
     echo "⏭ Skipping database connection test..."
   else
-    _test_connection "db"
+    _test_connection "database"
   fi
 
   if [ "$TEST_CACHE_CONNECTION" != "true" ]; then
     echo "⏭ Skipping cache connection test..."
   else
     _test_connection "cache"
+  fi
+
+  if [ "$TEST_SMTP_CONNECTION" != "true" ]; then
+    echo "⏭ Skipping SMTP connection test..."
+  else
+    _test_connection "smtp"
   fi
 }
 
@@ -71,13 +83,20 @@ _setup() {
   if [ -d "/laravel/app/public/storage" ]; then
     echo "✅ Storage already linked..."
   else
-    echo "🔐 Linking the storage..."
+    echo "🗂️ Linking the storage..."
     ${ARTISAN} storage:link
   fi
 
+  echo "⚙️ Creating config cache..."
   ${ARTISAN} config:cache
-  ${ARTISAN} events:cache
+
+  echo "🃏 Creating event cache..."
+  ${ARTISAN} event:cache
+
+  echo "🚏 Creating route cache..."
   ${ARTISAN} route:cache
+
+  echo "🖼️ Creating view cache..."
   ${ARTISAN} view:cache
 }
 
@@ -97,7 +116,7 @@ _run() {
         --delay="$CONTAINER_WORKER_DELAY"
       ;;
     horizon)
-      echo "Running horizon..."
+      echo "🌤️ Running horizon..."
       exec ${ARTISAN} horizon
       ;;
     scheduler)

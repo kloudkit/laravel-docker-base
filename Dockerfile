@@ -5,7 +5,7 @@ FROM dunglas/frankenphp:${frankenphp_version}-php${php_version} AS base
 WORKDIR /laravel
 SHELL ["/bin/bash", "-eou", "pipefail", "-c"]
 
-ENV SERVER_NAME=:80
+ENV SERVER_NAME=:8000
 ENV OCTANE_SERVER=frankenphp
 ARG user=laravel
 

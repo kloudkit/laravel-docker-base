@@ -17,4 +17,4 @@
 | `CONTAINER_WORKER_TIMEOUT` | `300`          | worker |
 | `TEST_DB_CONNECTION`       | `true`         | `*`    |
 | `TEST_CACHE_CONNECTION`    | `true`         | `*`    |
-| `TEST_CONNECTION_TIMEOUT`  | `20`           | `*`    |
+| `TEST_CONNECTION_TIMEOUT`  | `10`           | `*`    |
