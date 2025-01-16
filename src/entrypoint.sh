@@ -8,34 +8,53 @@ set -e
 : "${CONTAINER_WORKER_SLEEP:=5}"
 : "${CONTAINER_WORKER_TIMEOUT:=300}"
 : "${CONTAINER_WORKER_TRIES:=3}"
+
+: "${TEST_DB_CONNECTION:=true}"
+: "${TEST_CACHE_CONNECTION:=true}"
+: "${TEST_CONNECTION_TIMEOUT:=20}"
+
 : "${APP_ENV:=production}"
+: "${APP_DEBUG:=false}"
 
 ARTISAN="php -d variables_order=EGPCS /laravel/artisan"
 
-_migrate() {
+_test_connection() {
   local count=0
-  local timeout=20
+  local type="${1}"
 
-  while [ "$count" -lt "$timeout" ]; do
-    php -f /common/test_db_connection.php > /dev/null 2>&1
-
+  while [ "$count" -lt "$TEST_CONNECTION_TIMEOUT" ]; do
+    php -f "/common/test_${type}_connection.php" > /dev/null 2>&1
     status=$?
 
     if [ "$status" -eq 0 ]; then
-      echo "✅ Database connection successful."
-      break
+      echo "✅ ${type^} connection successful."
+      return 0
     fi
 
-    echo "⏱ Waiting on database connection, retrying... $((timeout - count)) seconds left"
+    echo "⏱ Waiting on $type connection, retrying... $((TEST_CONNECTION_TIMEOUT - count)) seconds left"
     count=$((count + 1))
     sleep 1
   done
 
-  if [ "$count" -eq "$timeout" ]; then
-    echo "⛔ Database connection failed after multiple attempts."
-    exit 1
+  echo "⛔ ${type^} connection failed after multiple attempts."
+  exit 1
+}
+
+_test_connections() {
+  if [ "$TEST_DB_CONNECTION" != "true" ]; then
+    echo "⏭ Skipping database connection test..."
+  else
+    _test_connection "db"
   fi
 
+  if [ "$TEST_CACHE_CONNECTION" != "true" ]; then
+    echo "⏭ Skipping cache connection test..."
+  else
+    _test_connection "cache"
+  fi
+}
+
+_migrate() {
   echo "🚀 Running migrations..."
   ${ARTISAN} migrate --force --isolated
 }
@@ -43,10 +62,10 @@ _migrate() {
 _setup() {
   if [ -n "$CONTAINER_MANUAL_SETUP" ]; then
     echo "⏭: Skipping setup..."
-
     return
   fi
 
+  _test_connections
   _migrate
 
   if [ -d "/laravel/app/public/storage" ]; then
