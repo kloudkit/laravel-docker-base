@@ -1,8 +1,9 @@
----
 name: 👷‍♂️ Build
 
 on:
   push:
+    branches:
+      - main
     tags:
       - v*
 
@@ -51,4 +52,8 @@ jobs:
           push: true
           provenance: false
           labels: ${{ steps.meta.outputs.labels }}
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: >-
+            ${{ github.ref == 'refs/heads/main'
+              && format('ghcr.io/{0}:dev', github.repository)
+              || steps.meta.outputs.tags }}
+
