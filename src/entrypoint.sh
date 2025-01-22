@@ -10,10 +10,6 @@ trap 'echo "Error on line $LINENO"' ERR
 : "${CONTAINER_WORKER_SLEEP:=5}"
 : "${CONTAINER_WORKER_TIMEOUT:=300}"
 : "${CONTAINER_WORKER_TRIES:=3}"
-
-: "${TEST_DB_CONNECTION:=true}"
-: "${TEST_CACHE_CONNECTION:=true}"
-: "${TEST_SMTP_CONNECTION:=false}"
 : "${TEST_CONNECTION_TIMEOUT:=10}"
 
 : "${APP_ENV:=production}"
@@ -47,23 +43,20 @@ _test_connection() {
 }
 
 _test_connections() {
-  if [ "$TEST_DB_CONNECTION" != "true" ]; then
-    echo "⏭ Skipping database connection test..."
-  else
-    _test_connection "database"
-  fi
+  declare -A connections=(
+    [database]="${TEST_DB_CONNECTION:-true}"
+    [cache]="${TEST_CACHE_CONNECTION:-true}"
+    [s3]="${TEST_S3_CONNECTION:-false}"
+    [smtp]="${TEST_SMTP_CONNECTION:-false}"
+  )
 
-  if [ "$TEST_CACHE_CONNECTION" != "true" ]; then
-    echo "⏭ Skipping cache connection test..."
-  else
-    _test_connection "cache"
-  fi
-
-  if [ "$TEST_SMTP_CONNECTION" != "true" ]; then
-    echo "⏭ Skipping SMTP connection test..."
-  else
-    _test_connection "smtp"
-  fi
+  for service in "${!connections[@]}"; do
+    if [ "${connections[$service]}" != "true" ]; then
+      echo "⏭ Skipping $service connection test..."
+    else
+      _test_connection "$service"
+    fi
+  done
 }
 
 _migrate() {
