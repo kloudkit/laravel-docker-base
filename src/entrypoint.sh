@@ -1,127 +1,157 @@
 #!/bin/bash
 
 set -euo pipefail
-trap 'echo "Error on line $LINENO"' ERR
 
-: "${CONTAINER_PORT:=8000}"
-: "${CONTAINER_MANUAL_SETUP:=}"
-: "${CONTAINER_MODE:=app}"
-: "${CONTAINER_WORKER_DELAY:=10}"
-: "${CONTAINER_WORKER_SLEEP:=5}"
-: "${CONTAINER_WORKER_TIMEOUT:=300}"
-: "${CONTAINER_WORKER_TRIES:=3}"
-: "${TEST_CONNECTION_TIMEOUT:=10}"
+: "${KLOUDKIT_PORT:=8000}"
+: "${KLOUDKIT_MANUAL_SETUP:=}"
+: "${KLOUDKIT_MODE:=app}"
+: "${KLOUDKIT_WORKER_DELAY:=10}"
+: "${KLOUDKIT_WORKER_SLEEP:=5}"
+: "${KLOUDKIT_WORKER_TIMEOUT:=300}"
+: "${KLOUDKIT_WORKER_TRIES:=3}"
+: "${KLOUDKIT_WORKER_MAX_JOBS:=1000}"
+: "${KLOUDKIT_WORKER_MAX_TIME:=3600}"
+: "${KLOUDKIT_WORKER_QUEUE:=default}"
+: "${KLOUDKIT_WORKER_CONNECTION:=}"
+: "${KLOUDKIT_TEST_TIMEOUT:=10}"
+: "${KLOUDKIT_LOG_COLOR:=}"
+: "${KLOUDKIT_SKIP_CONFIG_WARNINGS:=}"
 
 : "${APP_ENV:=production}"
 : "${APP_DEBUG:=false}"
 
-ARTISAN="php -d variables_order=EGPCS /laravel/artisan"
-
-_test_connection() {
-  local count=0
-  local type="${1}"
-  local status
-
-  echo "🧪 Testing ${type} connection..."
-
-  while [ "$count" -lt "$TEST_CONNECTION_TIMEOUT" ]; do
-    php -f "/common/test_${type}_connection.php" > /dev/null 2>&1
-    status=$?
-
-    if [ "$status" -eq 0 ]; then
-      echo "✅ ${type^} connection successful."
-      return 0
-    fi
-
-    echo "⏱ Waiting on $type connection, retrying... $((TEST_CONNECTION_TIMEOUT - count)) seconds left"
-    count=$((count + 1))
-    sleep 1
-  done
-
-  echo "⛔ ${type^} connection failed after multiple attempts."
-  exit 1
+_log_use_color() {
+  if [ "${NO_COLOR+set}" = "set" ]; then
+    return 1
+  fi
+  if [ "$KLOUDKIT_LOG_COLOR" = "true" ]; then
+    return 0
+  fi
+  [ -t 1 ]
 }
 
-_test_connections() {
-  declare -A connections=(
-    [database]="${TEST_DB_CONNECTION:-true}"
-    [cache]="${TEST_CACHE_CONNECTION:-true}"
-    [s3]="${TEST_S3_CONNECTION:-false}"
-    [smtp]="${TEST_SMTP_CONNECTION:-false}"
-  )
-
-  for service in "${!connections[@]}"; do
-    if [ "${connections[$service]}" != "true" ]; then
-      echo "⏭ Skipping $service connection test..."
-    else
-      _test_connection "$service"
-    fi
-  done
+_log() {
+  local level="$1" color="$2" fd="$3"
+  shift 3
+  if _log_use_color; then
+    printf "\033[${color}m[kloudkit] [${level}]\033[0m %s\n" "$*" >&"$fd"
+  else
+    printf "[kloudkit] [${level}] %s\n" "$*" >&"$fd"
+  fi
 }
 
-_migrate() {
-  echo "🚀 Running migrations..."
-  ${ARTISAN} migrate --force --isolated
+log_info()  { _log INFO  32 1 "$@"; }
+log_warn()  { _log WARN  33 1 "$@"; }
+log_error() { _log ERROR 31 1 "$@"; }
+
+log_pipe() {
+  local line
+  "$@" 2>&1 | while IFS= read -r line; do
+    log_info "    $line"
+  done
+  return "${PIPESTATUS[0]}"
+}
+
+trap 'log_error "Command failed: \"$BASH_COMMAND\" (exit code $?)"' ERR
+
+ARTISAN=(php -d variables_order=EGPCS /laravel/artisan)
+
+_banner() {
+  log_info "============================================"
+  log_info "Mode:  ${KLOUDKIT_MODE}"
+  log_info "Env:   ${APP_ENV}"
+  log_info "Debug: ${APP_DEBUG}"
+  log_info "============================================"
 }
 
 _setup() {
-  if [ -n "$CONTAINER_MANUAL_SETUP" ]; then
-    echo "⏭: Skipping setup..."
+  if [ -n "$KLOUDKIT_MANUAL_SETUP" ]; then
+    log_info "Skipping setup..."
     return
   fi
 
-  _test_connections
-  _migrate
+  log_info "Running migrations..."
+  log_pipe "${ARTISAN[@]}" migrate --force --isolated
 
-  if [ -d "/laravel/app/public/storage" ]; then
-    echo "✅ Storage already linked..."
+  if [ -L "/laravel/public/storage" ]; then
+    log_info "Storage already linked."
   else
-    echo "🗂️ Linking the storage..."
-    ${ARTISAN} storage:link
+    log_info "Linking the storage..."
+    log_pipe "${ARTISAN[@]}" storage:link
   fi
 
-  echo "⚙️ Creating config cache..."
-  ${ARTISAN} config:cache
+  log_info "Optimizing application..."
+  log_pipe /helpers/artisan-optimize
+}
 
-  echo "🃏 Creating event cache..."
-  ${ARTISAN} event:cache
+_check_config() {
+  if [ -n "$KLOUDKIT_SKIP_CONFIG_WARNINGS" ]; then
+    return
+  fi
 
-  echo "🚏 Creating route cache..."
-  ${ARTISAN} route:cache
+  local output
+  output=$(php -f /checks/check_container_config.php 2>/dev/null) || true
 
-  echo "🖼️ Creating view cache..."
-  ${ARTISAN} view:cache
+  if [ -n "$output" ]; then
+    while IFS= read -r line; do
+      log_warn "$line"
+    done <<< "$output"
+  fi
 }
 
 _run() {
-  case "$CONTAINER_MODE" in
+  case "$KLOUDKIT_MODE" in
     app)
-      echo "🚀 Running octane..."
-      exec ${ARTISAN} octane:frankenphp --host=0.0.0.0 --port="$CONTAINER_PORT"
+      _setup
+      log_info "Starting Octane on port ${KLOUDKIT_PORT}..."
+      exec "${ARTISAN[@]}" octane:frankenphp --host=0.0.0.0 --port="$KLOUDKIT_PORT"
       ;;
     worker)
-      echo "⏳ Running the queue..."
-      exec ${ARTISAN} queue:work -vv \
+      log_info "Starting queue worker..."
+      log_info "  Queue:      ${KLOUDKIT_WORKER_QUEUE}"
+      log_info "  Connection: ${KLOUDKIT_WORKER_CONNECTION:-default}"
+      log_info "  Tries:      ${KLOUDKIT_WORKER_TRIES}"
+      log_info "  Timeout:    ${KLOUDKIT_WORKER_TIMEOUT}s"
+      log_info "  Sleep:      ${KLOUDKIT_WORKER_SLEEP}s"
+      log_info "  Delay:      ${KLOUDKIT_WORKER_DELAY}s"
+      log_info "  Max jobs:   ${KLOUDKIT_WORKER_MAX_JOBS}"
+      log_info "  Max time:   ${KLOUDKIT_WORKER_MAX_TIME}s"
+
+      WORKER_CMD=("${ARTISAN[@]}" queue:work)
+      if [ -n "$KLOUDKIT_WORKER_CONNECTION" ]; then
+        WORKER_CMD+=("$KLOUDKIT_WORKER_CONNECTION")
+      fi
+      exec "${WORKER_CMD[@]}" -vv \
         --no-interaction \
-        --tries="$CONTAINER_WORKER_TRIES" \
-        --sleep="$CONTAINER_WORKER_SLEEP" \
-        --timeout="$CONTAINER_WORKER_TIMEOUT" \
-        --delay="$CONTAINER_WORKER_DELAY"
+        --tries="$KLOUDKIT_WORKER_TRIES" \
+        --sleep="$KLOUDKIT_WORKER_SLEEP" \
+        --timeout="$KLOUDKIT_WORKER_TIMEOUT" \
+        --delay="$KLOUDKIT_WORKER_DELAY" \
+        --max-jobs="$KLOUDKIT_WORKER_MAX_JOBS" \
+        --max-time="$KLOUDKIT_WORKER_MAX_TIME" \
+        --queue="$KLOUDKIT_WORKER_QUEUE"
       ;;
     horizon)
-      echo "🌤️ Running horizon..."
-      exec ${ARTISAN} horizon
+      log_info "Starting Horizon..."
+      exec "${ARTISAN[@]}" horizon
       ;;
     scheduler)
-      echo "📆 Running scheduled tasks..."
-      exec ${ARTISAN} schedule:work --verbose --no-interaction
+      log_info "Starting scheduler..."
+      exec "${ARTISAN[@]}" schedule:work --verbose --no-interaction
+      ;;
+    migrate)
+      _setup
+      log_info "Setup complete."
       ;;
     *)
-      echo "⛔ Could not match the container mode [$CONTAINER_MODE]"
+      log_error "Could not match the container mode [$KLOUDKIT_MODE]"
       exit 1
       ;;
   esac
 }
 
-_setup
+_banner
+# shellcheck source=/dev/null
+source /helpers/test-connections
+_check_config
 _run

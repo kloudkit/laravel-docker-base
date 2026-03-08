@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -euo pipefail
+
+php /laravel/artisan config:clear
+php /laravel/artisan event:clear
+php /laravel/artisan route:clear
+php /laravel/artisan view:clear

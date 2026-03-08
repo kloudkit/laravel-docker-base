@@ -1,0 +1,12 @@
+#!/bin/bash
+set -euo pipefail
+
+composer install \
+  --no-ansi \
+  --no-dev \
+  --no-interaction \
+  --no-progress \
+  --no-scripts \
+  --prefer-dist \
+  --quiet \
+  "$@"

@@ -1,5 +1,5 @@
-ARG php_version=8.4
-ARG frankenphp_version=1.4
+ARG php_version=8.5
+ARG frankenphp_version=1.11.3
 
 FROM dunglas/frankenphp:${frankenphp_version}-php${php_version} AS base
 WORKDIR /laravel
@@ -11,7 +11,8 @@ ARG user=laravel
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 COPY --chmod=755 src/entrypoint.sh /entrypoint.sh
-COPY --chmod=755 src/common /common
+COPY --chmod=755 src/checks /checks
+COPY --chmod=755 src/helpers /helpers
 COPY --chown=${user}:${user} src/artisan artisan
 COPY src/php.ini "${PHP_INI_DIR}/php.ini"
 
@@ -58,6 +59,8 @@ RUN mkdir -p \
     storage/framework/testing \
     storage/framework/views \
     storage/logs \
-  && chmod -R a+rw storage
+  && chmod -R 775 storage
+
+STOPSIGNAL SIGTERM
 
 ENTRYPOINT ["/entrypoint.sh"]

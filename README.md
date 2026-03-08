@@ -9,8 +9,8 @@ project rather than run it directly [*(see below)*](#getting-started).
 
 ## Release Tags
 
-- **Development *(`:dev`)***: Built automatically from every commit to the `main` branch.
-- **Production *(`:vX.Y.Z`)***: Tagged versions for stable releases, with `:latest`
+- **Development *(`:dev`)*:** Built automatically from every commit to the `main` branch.
+- **Production *(`:vX.Y.Z`)*:** Tagged versions for stable releases, with `:latest`
     pointing to the most recent version.
 
 ## Table of Contents
@@ -25,27 +25,44 @@ project rather than run it directly [*(see below)*](#getting-started).
   - [`worker`](#worker)
   - [`horizon`](#horizon)
   - [`scheduler`](#scheduler)
-- [Manual Setup vs Automatic Setup](#manual-setup-vs-automatic-setup)
-- [Testing Connections](#testing-connections)
+  - [`migrate`](#migrate)
+- [Automatic Setup](#automatic-setup)
+- [Deployment Strategy](#deployment-strategy)
+  - [Single image, multiple services](#single-image-multiple-services)
+  - [No supervisor needed](#no-supervisor-needed)
+  - [Init container pattern](#init-container-pattern)
+  - [Example docker-compose](#example-docker-compose)
+  - [Health checks](#health-checks)
+- [Connection Tests](#connection-tests)
+- [Config Warnings](#config-warnings)
+- [Helper Scripts](#helper-scripts)
 - [Contributing](#contributing)
 - [License](#license)
 
 ## Features
 
-- **FrankenPHP**: Powered by the [FrankenPHP][] runtime, providing a performant way to
+- **FrankenPHP:** Powered by the [FrankenPHP][] runtime, providing a performant way to
     serve Laravel.
-- **Container Modes**: Easily switch between `app`, `worker`, `horizon`, and `scheduler`
-    modes.
-- **Connection Testing**: Optional checks for database, cache, S3, and SMTP connections
-    before serving the app.
-- **Automatic Setup**: Laravel migrations, caches *(config, routes, views, events)*, and
-    storage linking happen by default.
-- **PHP Extensions**: Commonly used PHP extensions for a typical Laravel application
+- **Container Modes:** Easily switch between `app`, `worker`, `horizon`, `scheduler`,
+    and `migrate` modes.
+- **Connection Tests:** Optional startup checks for database, cache, queue, Redis, S3,
+    and SMTP connections before the process starts.
+- **Config Warnings:** Detects common misconfigurations *(file-based sessions, sync queues,
+    etc.)* and logs warnings on startup.
+- **Automatic Setup:** Migrations, caches *(config, routes, views, events)*, and
+    storage linking happen by default in `app` and `migrate` modes.
+- **Graceful Shutdown:** `STOPSIGNAL SIGTERM` ensures clean shutdown of Octane, Horizon,
+    and queue workers.
+- **Memory Leak Prevention:** Workers use `--max-jobs` and `--max-time` to exit gracefully,
+    relying on the orchestrator to restart.
+- **Helper Scripts:** Bundled scripts at `/helpers` for common Composer and Artisan
+    operations in your Dockerfile.
+- **PHP Extensions:** Commonly used PHP extensions for a typical Laravel application
     *(bcmath, bz2, intl, redis, etc.)*.
 
 ## Getting Started
 
-Because this is a base image, you’ll typically reference it in your own `Dockerfile`.
+Because this is a base image, you'll typically reference it in your own `Dockerfile`.
 We strongly recommend using multi-stage builds to handle dependencies
 *(e.g., installing Composer or Node packages)*, ensuring your final production image is as
 lean as possible.
@@ -64,12 +81,7 @@ COPY composer.json .
 COPY composer.lock .
 COPY packages packages
 
-RUN composer install \
-    --ignore-platform-reqs \
-    --no-cache \
-    --no-interaction \
-    --no-scripts \
-    --prefer-dist
+RUN /helpers/composer-install
 
 #################################### NodeJS ####################################
 
@@ -102,55 +114,61 @@ COPY --chown=laravel:laravel resources resources
 COPY --chown=laravel:laravel routes routes
 COPY --chown=laravel:laravel --from=client /build/public public
 
-RUN composer install \
-    --no-ansi \
-    --no-dev \
-    --no-interaction \
-    --no-progress \
-    --no-scripts \
-    --prefer-dist \
-    --quiet \
-  && composer dump-autoload \
-    --classmap-authoritative \
-    --no-dev
+RUN /helpers/composer-install \
+  && /helpers/composer-optimize
 ```
 
 ## Environment Variables
 
 You can customize the container by setting the following environment variables:
 
-| **Variable**               | **Default**    | **Modes** | **Description**                                                       |
-| -------------------------- | -------------- | --------- | --------------------------------------------------------------------- |
-| `APP_DEBUG`                | `false`        | `*`       | Laravel debug mode                                                    |
-| `APP_ENV`                  | `"production"` | `*`       | Laravel environment name                                              |
-| `CONTAINER_MANUAL_SETUP`   | *(empty)*      | `*`       | Skips automatic setup *(migrations, caching, etc.)*                   |
-| `CONTAINER_MODE`           | `"app"`        | `*`       | Define the container mode *(see [Container Modes](#container-modes))* |
-| `CONTAINER_PORT`           | `8000`         | `app`     | Port FrankenPHP listens to *(when in `app` mode)*                     |
-| `CONTAINER_WORKER_DELAY`   | `10`           | `worker`  | `queue:work` delay                                                    |
-| `CONTAINER_WORKER_SLEEP`   | `5`            | `worker`  | `queue:work` sleep                                                    |
-| `CONTAINER_WORKER_TRIES`   | `3`            | `worker`  | `queue:work` tries                                                    |
-| `CONTAINER_WORKER_TIMEOUT` | `300`          | `worker`  | `queue:work` timeout                                                  |
-| `TEST_CACHE_CONNECTION`    | `true`         | `*`       | Test cache connection on startup                                      |
-| `TEST_DB_CONNECTION`       | `true`         | `*`       | Test database connection on startup                                   |
-| `TEST_S3_CONNECTION`       | `false`        | `*`       | Test S3 connection on startup                                         |
-| `TEST_SMTP_CONNECTION`     | `false`        | `*`       | Test SMTP connection on startup                                       |
-| `TEST_CONNECTION_TIMEOUT`  | `10`           | `*`       | Seconds to attempt each connection test before failing                |
+| **Variable**                    | **Default**    | **Modes**        | **Description**                                                       |
+| ------------------------------- | -------------- | ---------------- | --------------------------------------------------------------------- |
+| `APP_DEBUG`                     | `false`        | `*`              | Laravel debug mode                                                    |
+| `APP_ENV`                       | `"production"` | `*`              | Laravel environment name                                              |
+| `KLOUDKIT_MANUAL_SETUP`         | *(empty)*      | `app`, `migrate` | Skips automatic setup *(migrations, caching, etc.)*                   |
+| `KLOUDKIT_MODE`                 | `"app"`        | `*`              | Define the container mode *(see [Container Modes](#container-modes))* |
+| `KLOUDKIT_PORT`                 | `8000`         | `app`            | Port FrankenPHP listens to *(when in `app` mode)*                     |
+| `KLOUDKIT_WORKER_CONNECTION`    | *(empty)*      | `worker`         | Queue connection name *(positional arg to `queue:work`)*              |
+| `KLOUDKIT_WORKER_DELAY`         | `10`           | `worker`         | `queue:work` delay                                                    |
+| `KLOUDKIT_WORKER_MAX_JOBS`      | `1000`         | `worker`         | Max jobs before worker exits gracefully                               |
+| `KLOUDKIT_WORKER_MAX_TIME`      | `3600`         | `worker`         | Max seconds before worker exits gracefully                            |
+| `KLOUDKIT_WORKER_QUEUE`         | `"default"`    | `worker`         | Queue name(s) to process *(comma-separated for priority)*             |
+| `KLOUDKIT_WORKER_SLEEP`         | `5`            | `worker`         | `queue:work` sleep                                                    |
+| `KLOUDKIT_WORKER_TRIES`         | `3`            | `worker`         | `queue:work` tries                                                    |
+| `KLOUDKIT_WORKER_TIMEOUT`       | `300`          | `worker`         | `queue:work` timeout                                                  |
+| `KLOUDKIT_TEST_CACHE`           | `true`         | `*`              | Test cache connection on startup                                      |
+| `KLOUDKIT_TEST_DB`              | `true`         | `*`              | Test database connection on startup                                   |
+| `KLOUDKIT_TEST_QUEUE`           | `false`        | `*`              | Test queue connection on startup                                      |
+| `KLOUDKIT_TEST_REDIS`           | `false`        | `*`              | Test Redis connection on startup                                      |
+| `KLOUDKIT_TEST_S3`              | `false`        | `*`              | Test S3 connection on startup                                         |
+| `KLOUDKIT_TEST_SMTP`            | `false`        | `*`              | Test SMTP connection on startup                                       |
+| `KLOUDKIT_TEST_TIMEOUT`         | `10`           | `*`              | Seconds to attempt each connection test before failing                |
+| `KLOUDKIT_LOG_COLOR`            | *(empty)*      | `*`              | Force colored log output (`true` to enable)                           |
+| `NO_COLOR`                      | *(empty)*      | `*`              | Disable colored output (per [no-color.org](https://no-color.org))     |
+| `KLOUDKIT_SKIP_CONFIG_WARNINGS` | *(empty)*      | `*`              | Skip config warnings on startup                                      |
 
 ## Container Modes
 
-This image supports multiple container modes via the `CONTAINER_MODE` variable, each
+This image supports multiple container modes via the `KLOUDKIT_MODE` variable, each
 focusing on a specific type of service:
 
 ### `app`
 
-- Serves the Laravel application using FrankenPHP on port `CONTAINER_PORT`
-  *(default `8000`)*.
+- Runs setup *(migrations, caching)* then serves the Laravel application using FrankenPHP
+  on port `KLOUDKIT_PORT` *(default `8000`)*.
 - Ideal for load-balanced or standalone app containers.
 
 ### `worker`
 
-- Runs `php artisan queue:work` with the provided settings *(`CONTAINER_WORKER_*`)*.
-- Suitable for handling asynchronous jobs.
+- Runs `php artisan queue:work` with the provided settings *(`KLOUDKIT_WORKER_*`)*.
+- Exits gracefully after `KLOUDKIT_WORKER_MAX_JOBS` jobs or `KLOUDKIT_WORKER_MAX_TIME`
+  seconds to prevent memory leaks. The orchestrator restarts the container automatically.
+- Use `KLOUDKIT_WORKER_QUEUE` to target specific queues *(comma-separated for priority,
+  processed left-to-right)* and `KLOUDKIT_WORKER_CONNECTION` to select an alternative
+  queue driver *(e.g., `sqs` instead of the default)*.
+- Scale horizontally by running multiple replicas of any worker container. Each replica
+  independently pulls jobs from the same queue.
 
 ### `horizon`
 
@@ -162,36 +180,147 @@ focusing on a specific type of service:
 - Runs `php artisan schedule:work` in the foreground.
 - Great for cron-like, scheduled tasks.
 
-## Manual Setup vs Automatic Setup
+### `migrate`
 
-By default, this image **automatically**:
+- Runs setup *(migrations, caching)* then exits.
+- Designed as an init container that runs before other services start.
+- Use with `depends_on: { condition: service_completed_successfully }` in Docker Compose
+  or as a Kubernetes init container.
 
-- Tests connections *(DB, cache, S3, SMTP)* if `TEST_*` variables are set to `true`.
-- Runs `php artisan migrate --force`.
-- Creates the storage symlink *(if not already present)*.
-- Caches config, events, routes, and views.
+## Automatic Setup
 
-If you need to skip these steps *(e.g., you manage migrations separately)*, set
-`CONTAINER_MANUAL_SETUP` to any non-empty value, and the container will **skip** all
-auto-setup steps, running the [Container Mode](#container-modes) command directly.
+By default, the `app` and `migrate` modes **automatically**:
 
-## Testing Connections
+- Run `php artisan migrate --force --isolated`.
+- Create the storage symlink *(if not already present)*.
+- Cache config, events, routes, and views.
 
-The image's entrypoint can optionally test common connections before starting
-*(or failing fast)*, depending on environment variables:
+Other modes *(`worker`, `horizon`, `scheduler`)* skip setup and start their process directly.
+This prevents race conditions where multiple containers try to run migrations simultaneously.
 
-- **Database:**: Controlled by `TEST_DB_CONNECTION` *(`true` by default)*.
-- **Cache:**: Controlled by `TEST_CACHE_CONNECTION` *(`true` by default)*.
-- **S3:**: Controlled by `TEST_S3_CONNECTION` *(`false` by default)*.
-- **SMTP:**: Controlled by `TEST_SMTP_CONNECTION` *(`false` by default)*.
+To skip setup in `app` or `migrate` mode, set `KLOUDKIT_MANUAL_SETUP` to any non-empty value.
 
-Each test will attempt a connection for up to `TEST_CONNECTION_TIMEOUT` seconds before
-giving up and exiting with a non-zero code.
-This ensures your container won’t fully start unless its dependencies are actually ready.
+## Deployment Strategy
+
+### Single image, multiple services
+
+Build your application image once, then deploy multiple containers with different
+`KLOUDKIT_MODE` values.
+Every container uses the same image, only the mode differs.
+
+### No supervisor needed
+
+Each container mode uses `exec` to replace the shell with the target process *(PID 1)*.
+The orchestrator *(Docker restart policy or Kubernetes)* handles restarts:
+
+- **Process crash:** container exits, orchestrator restarts.
+- **`--max-jobs`/`--max-time`:** worker exits gracefully (code 0), orchestrator restarts.
+- **SIGTERM:** Octane, Horizon, and queue:work all handle graceful shutdown natively.
+
+### Init container pattern
+
+Use `KLOUDKIT_MODE=migrate` as an init container that runs setup once before the rest of
+your services start.
+
+This avoids race conditions from multiple containers running migrations simultaneously.
+
+### Example docker-compose
+
+```yaml
+services:
+  migrate:
+    image: my-app:latest
+    environment:
+      KLOUDKIT_MODE: migrate
+    depends_on:
+      db: { condition: service_healthy }
+    restart: "no"
+
+  app:
+    image: my-app:latest
+    environment:
+      KLOUDKIT_MODE: app
+      KLOUDKIT_MANUAL_SETUP: "1"
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  worker:
+    image: my-app:latest
+    environment:
+      KLOUDKIT_MODE: worker
+      KLOUDKIT_WORKER_MAX_JOBS: 1000
+      KLOUDKIT_WORKER_MAX_TIME: 3600
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  worker-emails:
+    image: my-app:latest
+    environment:
+      KLOUDKIT_MODE: worker
+      KLOUDKIT_WORKER_QUEUE: emails
+      KLOUDKIT_WORKER_MAX_JOBS: 500
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  scheduler:
+    image: my-app:latest
+    environment:
+      KLOUDKIT_MODE: scheduler
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+```
+
+### Health checks
+
+Health checks are left to the deployment layer.
+
+Use Kubernetes liveness/readiness probes or Docker Compose `healthcheck` directives on
+your services as needed.
+
+## Connection Tests
+
+The entrypoint can optionally test connections before starting, controlled by the
+`KLOUDKIT_TEST_*` environment variables. Database and cache tests are enabled by default;
+queue, Redis, S3, and SMTP are opt-in.
+
+Each test retries for up to `KLOUDKIT_TEST_TIMEOUT` seconds *(default `10`)* before
+exiting with a non-zero code. This ensures your container won't start unless its
+dependencies are actually ready.
+
+Connection tests run in **all** container modes.
 
 > [!IMPORTANT]
 > Ensure you provide the correct authentication environment variables
 > *(DB_HOST, DB_USERNAME, DB_PASSWORD, etc.)* for any connections you enable.
+
+## Config Warnings
+
+On startup, the entrypoint checks your Laravel configuration and logs warnings for
+common issues in containerized deployments:
+
+- **Sessions:** file or array driver &mdash; consider `redis` or `database`.
+- **Cache:** file or array driver &mdash; consider `redis` or `memcached`.
+- **Queue:** sync driver &mdash; consider `redis`, `sqs`, or `database`.
+- **Logging:** single or daily driver &mdash; consider `stderr`.
+- **Broadcasting:** `log` or `null` driver when `channels.php` uses `Broadcast::`.
+
+Set `KLOUDKIT_SKIP_CONFIG_WARNINGS` to any non-empty value to suppress these warnings.
+
+## Helper Scripts
+
+The image includes scripts at `/helpers` for common operations in your Dockerfile or
+custom entrypoint:
+
+| Script                       | Description                                                 |
+| ---------------------------- | ----------------------------------------------------------- |
+| `/helpers/composer-install`  | Production `composer install` *(no-dev, no-scripts, quiet)* |
+| `/helpers/composer-optimize` | `composer dump-autoload --classmap-authoritative --no-dev`  |
+| `/helpers/artisan-optimize`  | Caches config, events, routes, and views                    |
+| `/helpers/artisan-clear`     | Clears config, event, route, and view caches                |
 
 ## Contributing
 

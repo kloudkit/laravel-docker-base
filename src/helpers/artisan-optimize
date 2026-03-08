@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -euo pipefail
+
+php -d variables_order=EGPCS /laravel/artisan config:cache
+php -d variables_order=EGPCS /laravel/artisan event:cache
+php -d variables_order=EGPCS /laravel/artisan route:cache
+php -d variables_order=EGPCS /laravel/artisan view:cache

@@ -1,12 +1,8 @@
 <?php
 
-require '/laravel/vendor/autoload.php';
+require_once '/checks/bootstrap.php';
 
 use Illuminate\Support\Facades\Storage;
-
-$app = require_once '/laravel/bootstrap/app.php';
-$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
-$kernel->bootstrap();
 
 try {
     $disk = Storage::disk('s3');
