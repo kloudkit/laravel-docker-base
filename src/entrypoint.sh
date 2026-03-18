@@ -16,6 +16,7 @@ set -euo pipefail
 : "${KLOUDKIT_TEST_TIMEOUT:=10}"
 : "${KLOUDKIT_LOG_COLOR:=}"
 : "${KLOUDKIT_SKIP_CONFIG_WARNINGS:=}"
+: "${KLOUDKIT_HOOKS_IGNORE_FAILURES:=}"
 
 : "${APP_ENV:=production}"
 : "${APP_DEBUG:=false}"
@@ -102,8 +103,11 @@ _check_config() {
 _run() {
   case "$KLOUDKIT_MODE" in
     app)
+      _run_hooks pre-setup
       _setup
+      _run_hooks post-setup
       log_info "Starting Octane on port ${KLOUDKIT_PORT}..."
+      _run_hooks pre-run
       exec "${ARTISAN[@]}" octane:frankenphp --host=0.0.0.0 --port="$KLOUDKIT_PORT"
       ;;
     worker)
@@ -121,6 +125,7 @@ _run() {
       if [ -n "$KLOUDKIT_WORKER_CONNECTION" ]; then
         WORKER_CMD+=("$KLOUDKIT_WORKER_CONNECTION")
       fi
+      _run_hooks pre-run
       exec "${WORKER_CMD[@]}" -vv \
         --no-interaction \
         --tries="$KLOUDKIT_WORKER_TRIES" \
@@ -133,14 +138,19 @@ _run() {
       ;;
     horizon)
       log_info "Starting Horizon..."
+      _run_hooks pre-run
       exec "${ARTISAN[@]}" horizon
       ;;
     scheduler)
       log_info "Starting scheduler..."
+      _run_hooks pre-run
       exec "${ARTISAN[@]}" schedule:work --verbose --no-interaction
       ;;
     migrate)
+      _run_hooks pre-setup
       _setup
+      _run_hooks post-setup
+      _run_hooks pre-run
       log_info "Setup complete."
       ;;
     *)
@@ -151,6 +161,9 @@ _run() {
 }
 
 _banner
+# shellcheck source=/dev/null
+source /helpers/run-hooks
+_run_hooks pre-start
 # shellcheck source=/dev/null
 source /helpers/test-connections
 _check_config

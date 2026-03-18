@@ -1,5 +1,5 @@
 ARG php_version=8.5
-ARG frankenphp_version=1.11.3
+ARG frankenphp_version=1.12.1
 
 FROM dunglas/frankenphp:${frankenphp_version}-php${php_version} AS base
 WORKDIR /laravel
@@ -59,6 +59,10 @@ RUN mkdir -p \
     storage/framework/testing \
     storage/framework/views \
     storage/logs \
+    hooks/pre-start \
+    hooks/pre-setup \
+    hooks/post-setup \
+    hooks/pre-run \
   && chmod -R 775 storage
 
 STOPSIGNAL SIGTERM

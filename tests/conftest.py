@@ -21,9 +21,12 @@ def shed_tag(shed_state):
   tag = f"{shed_state.image}:test-laravel"
   subprocess.run(
     [
-      "docker", "build",
-      "--build-arg", f"BASE_IMAGE={shed_state.image_and_tag}",
-      "-t", tag,
+      "docker",
+      "build",
+      "--build-arg",
+      f"BASE_IMAGE={shed_state.image_and_tag}",
+      "-t",
+      tag,
       str(shed_state.tests_path.parent),
     ],
     check=True,

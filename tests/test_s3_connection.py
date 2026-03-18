@@ -38,7 +38,5 @@ def test_s3_connection_succeeds(docker_sidecar, shed_deferred):
   KLOUDKIT_TEST_TIMEOUT=1,
 )
 def test_s3_connection_fails_without_s3(shed_deferred):
-  with pytest.raises(
-    DockerException, match="S3 connection failed after 1s."
-  ):
+  with pytest.raises(DockerException, match="S3 connection failed after 1s."):
     shed_deferred(detach=False)

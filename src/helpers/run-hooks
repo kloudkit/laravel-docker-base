@@ -1,0 +1,45 @@
+#!/bin/bash
+
+_run_hooks() {
+  local phase="$1"
+  local hooks_dir="/laravel/hooks/${phase}"
+  export KLOUDKIT_MODE
+
+  if [ ! -d "$hooks_dir" ]; then
+    return
+  fi
+
+  local found=0
+
+  for hook in "$hooks_dir"/*; do
+    [ -e "$hook" ] || continue
+
+    local basename
+    basename=$(basename "$hook")
+
+    if [[ "$basename" == .* ]]; then
+      continue
+    fi
+
+    if [ ! -x "$hook" ]; then
+      log_warn "Hook skipped (not executable): ${hook}"
+      continue
+    fi
+
+    found=$((found + 1))
+    log_info "Running hook: ${hook}"
+
+    if ! "$hook"; then
+      if [ "${KLOUDKIT_HOOKS_IGNORE_FAILURES:-}" = "true" ]; then
+        log_warn "Hook failed (ignored): ${hook}"
+      else
+        log_error "Hook failed: ${hook}"
+        exit 1
+      fi
+    fi
+  done
+
+  if [ "$found" -gt 0 ]; then
+    log_info "Completed ${found} ${phase} hook(s)."
+  fi
+}

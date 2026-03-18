@@ -454,7 +454,7 @@ wheels = [
 
 [[package]]
 name = "testshed"
-version = "0.0.12"
+version = "0.0.13"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "playwright" },
@@ -463,9 +463,9 @@ dependencies = [
     { name = "pyyaml" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d7/8c/019db03a33d2318fa20b394bfbb544ccb69ad54d2dd9e20caf5f5617284a/testshed-0.0.12.tar.gz", hash = "sha256:f124390ecb45962df7d9c1808142d6b01bca7ff1d9a14045ee3cd904acc3641f", size = 20705, upload-time = "2026-03-08T14:19:11.395Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7b/9f/80478d6eb1dc46768a140ec5884b6ebc7248c809d0e44c09acfac23e8abb/testshed-0.0.13.tar.gz", hash = "sha256:aafbe093d48e146bdd497687e9a910ff5078da5a77b04e0c7210a2fcb1bc4021", size = 21365, upload-time = "2026-03-09T09:12:19.214Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6b/32/cdfd8e4868bee930ba84a5605891fa9c9d5a3022b7fccd7610cdeccfec84/testshed-0.0.12-py3-none-any.whl", hash = "sha256:c6febb12b9f3d03eba3037302cf99faa992a8867ba4a10083d78d43bb6240552", size = 28064, upload-time = "2026-03-08T14:19:10.304Z" },
+    { url = "https://files.pythonhosted.org/packages/4e/0b/bc2b71ec8814b85f45254841ba7ee9d4edf2e40750e491a261dd6660d420/testshed-0.0.13-py3-none-any.whl", hash = "sha256:1274d931eee6aca503c973a3dc80078a9cbc4ceb4f86ce042ad5d5583ab59509", size = 29890, upload-time = "2026-03-09T09:12:17.656Z" },
 ]
 
 [[package]]

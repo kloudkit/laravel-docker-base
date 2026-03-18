@@ -5,4 +5,4 @@ requires-python = ">=3.11"
 dependencies = ["testshed"]
 
 [tool.pytest.ini_options]
-addopts = "--shed --shed-image=laravel-docker-base --shed-image-policy=build --shed-build-context=.. --shed-container-logs"
+addopts = "--shed --shed-image=laravel-docker-base --shed-image-policy=build --shed-build-context=.. --shed-stubs-dir=stubs --shed-container-logs"

@@ -30,7 +30,5 @@ def test_smtp_connection_succeeds(docker_sidecar, shed_deferred):
   KLOUDKIT_TEST_TIMEOUT=1,
 )
 def test_smtp_connection_fails_without_smtp(shed_deferred):
-  with pytest.raises(
-    DockerException, match="Smtp connection failed after 1s."
-  ):
+  with pytest.raises(DockerException, match="Smtp connection failed after 1s."):
     shed_deferred(detach=False)
