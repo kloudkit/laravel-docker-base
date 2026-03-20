@@ -3,6 +3,7 @@ set -euo pipefail
 
 composer install \
   --no-ansi \
+  --no-cache \
   --no-dev \
   --no-interaction \
   --no-progress \
