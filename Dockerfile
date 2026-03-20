@@ -19,6 +19,7 @@ COPY src/php.ini "${PHP_INI_DIR}/php.ini"
 RUN apt-get update \
   && apt-get satisfy -y --no-install-recommends \
     "curl (>=7.88)" \
+    "git (>=2.39)" \
     "unzip (>=6.0)" \
     "vim-tiny (>=2)" \
   && rm -rf /var/lib/apt/lists/*
