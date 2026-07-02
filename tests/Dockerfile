@@ -14,8 +14,7 @@ ENV APP_KEY=base64:CKcFno8bjubyT2XnxxwLbDsPpZHIP66aqGywNJ5xFxo= \
     KLOUDKIT_TEST_SMTP=false
 
 USER root
-# @todo: FIX — pinned to ^12 because laravel/octane conflicts with phpunit >12 (shipped by Laravel 13)
-RUN composer create-project laravel/laravel /tmp/skeleton "^12" --no-interaction --prefer-dist \
+RUN composer create-project laravel/laravel /tmp/skeleton --no-interaction --prefer-dist \
     && cp -a /tmp/skeleton/. /laravel/ \
     && rm -rf /tmp/skeleton \
     && composer require laravel/octane league/flysystem-aws-s3-v3 --no-interaction \

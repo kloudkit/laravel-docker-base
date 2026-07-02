@@ -1,5 +1,5 @@
 ARG php_version=8.5
-ARG frankenphp_version=1.12.1
+ARG frankenphp_version=1.12.4
 
 FROM dunglas/frankenphp:${frankenphp_version}-php${php_version} AS base
 WORKDIR /laravel
