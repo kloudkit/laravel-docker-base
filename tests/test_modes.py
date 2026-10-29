@@ -27,10 +27,10 @@ def wait_for_log(container, text, timeout=15):
 def test_worker_mode(docker_sidecar, shed_deferred):
   redis = docker_sidecar("redis:alpine")
   container = shed_deferred(envs={"REDIS_HOST": redis.ip()})
-  logs = wait_for_log(container, "Starting queue worker...")
+  logs = wait_for_log(container, "==> Starting queue worker...")
 
   assert "Mode:  worker" in logs
-  assert "Starting queue worker..." in logs
+  assert "==> Starting queue worker..." in logs
   assert "Queue:      default" in logs
   assert "Connection: default" in logs
   assert "Tries:      3" in logs
@@ -42,10 +42,10 @@ def test_worker_mode(docker_sidecar, shed_deferred):
 @shed_config(probe=None)
 @shed_env(KLOUDKIT_MODE="scheduler")
 def test_scheduler_mode(shed):
-  logs = wait_for_log(shed, "Starting scheduler...")
+  logs = wait_for_log(shed, "==> Starting scheduler...")
 
   assert "Mode:  scheduler" in logs
-  assert "Starting scheduler..." in logs
+  assert "==> Starting scheduler..." in logs
 
 
 @pytest.mark.skip(
@@ -57,8 +57,8 @@ def test_migrate_mode(shed_deferred):
   output = shed_deferred(detach=False)
 
   assert "Mode:  migrate" in output
-  assert "Running migrations..." in output
-  assert "Setup complete." in output
+  assert "==> Running migrations..." in output
+  assert "==> Setup complete." in output
 
 
 @pytest.mark.skip(
@@ -70,5 +70,5 @@ def test_custom_port(shed):
   logs = shed.logs()
   command = "curl -s -o /dev/null -w '%{http_code}' http://localhost:9000"
 
-  assert "Starting Octane on port 9000..." in logs
+  assert "==> Starting Octane on port 9000..." in logs
   assert shed.execute(command) == "200"

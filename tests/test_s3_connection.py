@@ -5,7 +5,7 @@ import pytest
 
 
 def test_s3_connection_skipped_by_default(shed):
-  assert "Skipping s3 connection test." in shed.logs()
+  assert "  Skipping s3 connection test." in shed.logs()
 
 
 @shed_env(
@@ -28,8 +28,8 @@ def test_s3_connection_succeeds(docker_sidecar, shed_deferred):
   container = shed_deferred(envs={"AWS_ENDPOINT": f"http://{minio.ip()}:9000"})
   logs = container.logs()
 
-  assert "Testing s3 connection..." in logs
-  assert "S3 connection successful." in logs
+  assert "==> Testing s3 connection..." in logs
+  assert "  S3 connection successful." in logs
 
 
 @shed_env(

@@ -69,11 +69,11 @@ def test_hook_failure_halts_startup(shed_deferred):
 
   assert "[test-hook] about-to-fail" in output
   assert "Hook failed:" in output
-  assert "Connection tests complete" not in output
+  assert "==> Connection tests complete" not in output
 
 
 @shed_volumes(*FAIL_HOOK_VOLUMES)
-@shed_config(probe=LogProbe(pattern=r"Connection tests complete"))
+@shed_config(probe=LogProbe(pattern=r"==> Connection tests complete"))
 @shed_env(KLOUDKIT_HOOKS_IGNORE_FAILURES="true")
 def test_hook_failure_continues_when_ignored(shed_deferred):
   container = shed_deferred()
@@ -81,11 +81,11 @@ def test_hook_failure_continues_when_ignored(shed_deferred):
 
   assert "[test-hook] about-to-fail" in logs
   assert "Hook failed (ignored):" in logs
-  assert "Connection tests complete" in logs
+  assert "==> Connection tests complete" in logs
 
 
 @shed_volumes(*HOOK_VOLUMES)
-@shed_config(probe=LogProbe(pattern=r"Completed.*pre-start hook"))
+@shed_config(probe=LogProbe(pattern=r"==> Completed.*pre-start hook"))
 def test_non_executable_file_skipped_with_warning(shed_deferred):
   container = shed_deferred()
   assert (
@@ -97,10 +97,10 @@ def test_non_executable_file_skipped_with_warning(shed_deferred):
 def test_empty_hooks_no_errors(shed):
   logs = shed.logs()
 
-  assert "Running hook:" not in logs
+  assert "  Running hook:" not in logs
   assert "Hook skipped" not in logs
   assert "Hook failed" not in logs
-  assert "Starting Octane" in logs
+  assert "==> Starting Octane" in logs
 
 
 @shed_volumes(*HOOK_VOLUMES)
@@ -144,4 +144,4 @@ def test_hooks_fire_with_manual_setup(shed_deferred):
 
   assert "[test-hook] pre-setup mode=app" in logs
   assert "[test-hook] post-setup mode=app" in logs
-  assert "Skipping setup..." in logs
+  assert "==> Skipping setup..." in logs

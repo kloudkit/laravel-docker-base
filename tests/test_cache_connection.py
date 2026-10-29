@@ -5,15 +5,15 @@ import pytest
 
 
 def test_cache_connection_skipped_by_default(shed):
-  assert "Skipping cache connection test." in shed.logs()
+  assert "  Skipping cache connection test." in shed.logs()
 
 
 @shed_env(KLOUDKIT_TEST_CACHE="true")
 def test_cache_connection_succeeds(shed):
   logs = shed.logs()
 
-  assert "Testing cache connection..." in logs
-  assert "Cache connection successful." in logs
+  assert "==> Testing cache connection..." in logs
+  assert "  Cache connection successful." in logs
 
 
 @shed_env(

@@ -5,7 +5,7 @@ import pytest
 
 
 def test_queue_connection_skipped_by_default(shed):
-  assert "Skipping queue connection test." in shed.logs()
+  assert "  Skipping queue connection test." in shed.logs()
 
 
 @shed_env(
@@ -18,8 +18,8 @@ def test_queue_connection_succeeds(docker_sidecar, shed_deferred):
   container = shed_deferred(envs={"REDIS_HOST": redis.ip()})
   logs = container.logs()
 
-  assert "Testing queue connection..." in logs
-  assert "Queue connection successful." in logs
+  assert "==> Testing queue connection..." in logs
+  assert "  Queue connection successful." in logs
 
 
 @shed_env(

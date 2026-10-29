@@ -5,7 +5,7 @@ import pytest
 
 
 def test_smtp_connection_skipped_by_default(shed):
-  assert "Skipping smtp connection test." in shed.logs()
+  assert "  Skipping smtp connection test." in shed.logs()
 
 
 @shed_env(
@@ -19,8 +19,8 @@ def test_smtp_connection_succeeds(docker_sidecar, shed_deferred):
   container = shed_deferred(envs={"MAIL_HOST": mailpit.ip()})
   logs = container.logs()
 
-  assert "Testing smtp connection..." in logs
-  assert "Smtp connection successful." in logs
+  assert "==> Testing smtp connection..." in logs
+  assert "  Smtp connection successful." in logs
 
 
 @shed_env(

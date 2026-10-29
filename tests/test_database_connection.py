@@ -5,7 +5,7 @@ import pytest
 
 
 def test_database_connection_skipped_by_default(shed):
-  assert "Skipping database connection test." in shed.logs()
+  assert "  Skipping database connection test." in shed.logs()
 
 
 @shed_env(
@@ -28,8 +28,8 @@ def test_database_connection_succeeds(docker_sidecar, shed_deferred):
   container = shed_deferred(envs={"DB_HOST": postgres.ip()})
   logs = container.logs()
 
-  assert "Testing database connection..." in logs
-  assert "Database connection successful." in logs
+  assert "==> Testing database connection..." in logs
+  assert "  Database connection successful." in logs
 
 
 @shed_env(

@@ -7,18 +7,18 @@ _test_connection() {
   local type="${1}"
   local status
 
-  log_info "Testing ${type} connection..."
+  log_info "==> Testing ${type} connection..."
 
   while [ "$count" -lt "$KLOUDKIT_TEST_TIMEOUT" ]; do
     php -f "/checks/test_${type}_connection.php" > /dev/null 2>&1
     status=$?
 
     if [ "$status" -eq 0 ]; then
-      log_info "${type^} connection successful."
+      log_info "  ${type^} connection successful."
       return 0
     fi
 
-    log_info "Waiting on $type connection, retrying... $((KLOUDKIT_TEST_TIMEOUT - count)) seconds left"
+    log_info "  Waiting on $type connection, retrying... $((KLOUDKIT_TEST_TIMEOUT - count)) seconds left"
     count=$((count + 1))
     sleep 1
   done
@@ -43,7 +43,7 @@ _test_connections() {
 
   for service in "${!connections[@]}"; do
     if [ "${connections[$service]}" != "true" ]; then
-      log_info "Skipping $service connection test."
+      log_info "  Skipping $service connection test."
       skipped=$((skipped + 1))
     else
       if _test_connection "$service"; then
@@ -55,7 +55,7 @@ _test_connections() {
     fi
   done
 
-  log_info "Connection tests complete: $tested tested, $skipped skipped."
+  log_info "==> Connection tests complete: $tested tested, $skipped skipped."
 
   if [ "$failed" -gt 0 ]; then
     log_error "$failed connection(s) failed."

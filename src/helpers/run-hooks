@@ -27,7 +27,7 @@ _run_hooks() {
     fi
 
     found=$((found + 1))
-    log_info "Running hook: ${hook}"
+    log_info "  Running hook: ${hook}"
 
     if ! "$hook"; then
       if [ "${KLOUDKIT_HOOKS_IGNORE_FAILURES:-}" = "true" ]; then
@@ -40,6 +40,6 @@ _run_hooks() {
   done
 
   if [ "$found" -gt 0 ]; then
-    log_info "Completed ${found} ${phase} hook(s)."
+    log_info "==> Completed ${found} ${phase} hook(s)."
   fi
 }

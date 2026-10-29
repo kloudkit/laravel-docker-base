@@ -5,7 +5,7 @@ import pytest
 
 
 def test_redis_connection_skipped_by_default(shed):
-  assert "Skipping redis connection test." in shed.logs()
+  assert "  Skipping redis connection test." in shed.logs()
 
 
 @shed_env(
@@ -16,8 +16,8 @@ def test_redis_connection_succeeds(docker_sidecar, shed_deferred):
   container = shed_deferred(envs={"REDIS_HOST": redis.ip()})
   logs = container.logs()
 
-  assert "Testing redis connection..." in logs
-  assert "Redis connection successful." in logs
+  assert "==> Testing redis connection..." in logs
+  assert "  Redis connection successful." in logs
 
 
 @shed_env(

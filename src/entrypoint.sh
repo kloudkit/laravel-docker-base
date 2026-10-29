@@ -67,21 +67,21 @@ _banner() {
 
 _setup() {
   if [ -n "$KLOUDKIT_MANUAL_SETUP" ]; then
-    log_info "Skipping setup..."
+    log_info "==> Skipping setup..."
     return
   fi
 
-  log_info "Running migrations..."
+  log_info "==> Running migrations..."
   log_pipe "${ARTISAN[@]}" migrate --force --isolated
 
   if [ -L "/laravel/public/storage" ]; then
-    log_info "Storage already linked."
+    log_info "  Storage already linked."
   else
-    log_info "Linking the storage..."
+    log_info "  Linking the storage..."
     log_pipe "${ARTISAN[@]}" storage:link
   fi
 
-  log_info "Optimizing application..."
+  log_info "==> Optimizing application..."
   log_pipe /helpers/artisan-optimize
 }
 
@@ -106,12 +106,12 @@ _run() {
       _run_hooks pre-setup
       _setup
       _run_hooks post-setup
-      log_info "Starting Octane on port ${KLOUDKIT_PORT}..."
+      log_info "==> Starting Octane on port ${KLOUDKIT_PORT}..."
       _run_hooks pre-run
       exec "${ARTISAN[@]}" octane:frankenphp --host=0.0.0.0 --port="$KLOUDKIT_PORT"
       ;;
     worker)
-      log_info "Starting queue worker..."
+      log_info "==> Starting queue worker..."
       log_info "  Queue:      ${KLOUDKIT_WORKER_QUEUE}"
       log_info "  Connection: ${KLOUDKIT_WORKER_CONNECTION:-default}"
       log_info "  Tries:      ${KLOUDKIT_WORKER_TRIES}"
@@ -137,12 +137,12 @@ _run() {
         --queue="$KLOUDKIT_WORKER_QUEUE"
       ;;
     horizon)
-      log_info "Starting Horizon..."
+      log_info "==> Starting Horizon..."
       _run_hooks pre-run
       exec "${ARTISAN[@]}" horizon
       ;;
     scheduler)
-      log_info "Starting scheduler..."
+      log_info "==> Starting scheduler..."
       _run_hooks pre-run
       exec "${ARTISAN[@]}" schedule:work --verbose --no-interaction
       ;;
@@ -151,7 +151,7 @@ _run() {
       _setup
       _run_hooks post-setup
       _run_hooks pre-run
-      log_info "Setup complete."
+      log_info "==> Setup complete."
       ;;
     *)
       log_error "Could not match the container mode [$KLOUDKIT_MODE]"
