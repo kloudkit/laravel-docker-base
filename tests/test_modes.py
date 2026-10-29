@@ -1,5 +1,6 @@
 import time
 
+from kloudkit.testshed.docker import HttpProbe
 from kloudkit.testshed.docker.decorators import shed_config, shed_env
 
 import pytest
@@ -19,9 +20,6 @@ def wait_for_log(container, text, timeout=15):
   pytest.fail(f"'{text}' not found in container logs after {timeout}s")
 
 
-@pytest.mark.skip(
-  reason="shed probe bug: probe=None doesn't disable default probe"
-)
 @shed_config(probe=None)
 @shed_env(KLOUDKIT_MODE="worker", QUEUE_CONNECTION="redis")
 def test_worker_mode(docker_sidecar, shed_deferred):
@@ -36,9 +34,6 @@ def test_worker_mode(docker_sidecar, shed_deferred):
   assert "Tries:      3" in logs
 
 
-@pytest.mark.skip(
-  reason="shed probe bug: probe=None doesn't disable default probe"
-)
 @shed_config(probe=None)
 @shed_env(KLOUDKIT_MODE="scheduler")
 def test_scheduler_mode(shed):
@@ -48,9 +43,6 @@ def test_scheduler_mode(shed):
   assert "==> Starting scheduler..." in logs
 
 
-@pytest.mark.skip(
-  reason="shed probe bug: probe=None doesn't disable default probe"
-)
 @shed_config(probe=None)
 @shed_env(KLOUDKIT_MODE="migrate")
 def test_migrate_mode(shed_deferred):
@@ -61,11 +53,8 @@ def test_migrate_mode(shed_deferred):
   assert "==> Setup complete." in output
 
 
-@pytest.mark.skip(
-  reason="shed probe bug: probe=None doesn't disable default probe"
-)
 @shed_env(KLOUDKIT_PORT="9000")
-@shed_config(port=9000)
+@shed_config(probe=HttpProbe(port=9000))
 def test_custom_port(shed):
   logs = shed.logs()
   command = "curl -s -o /dev/null -w '%{http_code}' http://localhost:9000"
